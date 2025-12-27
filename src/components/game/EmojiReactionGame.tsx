@@ -19,7 +19,7 @@ interface LeaderboardData {
 }
 
 // --- Constants ---
-const GRID_SIZE = 16;
+const GRID_SIZE = 25;
 const TARGET_EMOJI = "✅";
 const DECOY_EMOJIS = ["❌", "🔥", "💣", "💀", "🍕", "🐍", "👀", "🧠", "👻", "😈", "💎", "🚀", "🍆"];
 const STORAGE_KEY = "emoji_reaction_grid_data";
@@ -186,32 +186,7 @@ export default function EmojiReactionGame() {
       {/* 2. The Game Grid */}
       <div className="relative w-full max-w-[360px] aspect-square">
         
-        {/* Start Overlay - Minimalist */}
-        {gameState === "idle" && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/95 dark:bg-black/90 backdrop-blur-sm rounded-[32px] animate-in fade-in duration-500">
-              <div className="mb-6">
-                 <Target className="h-12 w-12 text-blue-600 dark:text-blue-500" strokeWidth={1.5} />
-              </div>
-              
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
-                Base Catch
-              </h1>
-              
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
-                Tap <span className="inline-block scale-125 mx-1">{TARGET_EMOJI}</span>
-              </p>
-              
-              <button 
-                onClick={startNewGame}
-                className="group flex items-center gap-3 px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black font-semibold rounded-full hover:scale-105 active:scale-95 transition-all shadow-md"
-              >
-                <span>Start Game</span>
-                <span className="bg-white/20 dark:bg-black/10 rounded-full p-1">
-                   <Zap className="h-3 w-3 fill-current" />
-                </span>
-              </button>
-            </div>
-        )}
+  
 
         {/* Game Over Overlay */}
         {gameState === "done" && feedback === "wrong" && (
@@ -230,7 +205,7 @@ export default function EmojiReactionGame() {
         )}
 
         {/* Grid Cells */}
-        <div className={`grid grid-cols-4 gap-3 w-full h-full p-2 transition-all duration-500 ${gameState === "waiting" ? "scale-95 opacity-50 blur-[2px]" : "scale-100 opacity-100 blur-0"}`}>
+        <div className={`grid grid-cols-5 gap-3 w-full h-full p-2 transition-all duration-500 ${gameState === "waiting" ? "scale-95 opacity-50 blur-[2px]" : "scale-100 opacity-100 blur-0"}`}>
           {grid.map((emoji, idx) => {
             const isTarget = emoji === TARGET_EMOJI;
             const isCorrect = feedback === "correct" && isTarget;
@@ -266,6 +241,21 @@ export default function EmojiReactionGame() {
           })}
         </div>
       </div>
+
+      {/* Start Button - Moved Below */}
+      {gameState === "idle" && (
+         <div className="mt-4 animate-in slide-in-from-top-4 duration-500">
+             <button 
+               onClick={startNewGame}
+               className="group flex items-center gap-3 px-6 py-2 bg-primary dark:bg-white text-white dark:text-black font-bold text-lg rounded-xl hover:scale-105 active:scale-95 transition-all shadow-xl hover:shadow-2xl hover:shadow-gray-500/20 dark:hover:shadow-white/20"
+             >
+               <span>Let's Catch Now</span>
+               <span className="bg-white/20 dark:bg-black/10 rounded-lg p-1">
+                  <Zap className="h-4 w-4 fill-current" />
+               </span>
+             </button>
+         </div>
+      )}
       
       {/* 3. Session Best (Minimalist List) */}
       <div className="w-full mt-12 max-w-[320px]">
