@@ -219,9 +219,10 @@ export default function EmojiReactionGame() {
                   relative rounded-2xl flex items-center justify-center text-3xl sm:text-4xl
                   transition-all duration-150 cursor-pointer select-none
                   border shadow-sm
-                  ${gameState === "ready" ? "hover:scale-[1.05] active:scale-95 bg-gray-50 dark:bg-white/5 data-[state=idle]:bg-transparent hover:bg-gray-100 dark:hover:bg-white/10 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/20 hover:shadow-md" : "border-transparent"}
-                  ${gameState === "waiting" ? "bg-white/50 dark:bg-white/5 border-indigo-100 dark:border-white/10" : ""}
-                  ${isCorrect ? "bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-100 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] scale-110 z-10" : ""}
+                  bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5
+                  ${gameState === "ready" ? "hover:scale-[1.05] active:scale-95 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:shadow-md" : ""}
+                  ${gameState === "idle" ? "bg-transparent border-transparent" : ""}
+                  ${isCorrect ? "!bg-emerald-100 dark:!bg-emerald-500/20 !border-emerald-500 text-emerald-100 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] scale-110 z-10" : ""}
                   ${isDimmed ? "opacity-20 scale-90 blur-[1px] grayscale" : ""}
                 `}
               >
