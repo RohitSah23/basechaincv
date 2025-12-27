@@ -4,13 +4,15 @@ import { useEffect } from "react";
 import { useMiniApp } from "@neynar/react";
 import { Header } from "~/components/ui/Header";
 import { Footer } from "~/components/ui/Footer";
-import { HomeTab, ActionsTab, ContextTab, WalletTab } from "~/components/ui/tabs";
+import { HomeTab, ActionsTab, ContextTab, WalletTab, LeaderboardTab } from "~/components/ui/tabs";
 import { USE_WALLET } from "~/lib/constants";
 import { useNeynarUser } from "../hooks/useNeynarUser";
+import { useUserSync } from "../hooks/useUserSync";
 
 // --- Types ---
 export enum Tab {
   Home = "home",
+  Leaderboard = "leaderboard",
   Actions = "actions",
   Context = "context",
   Wallet = "wallet",
@@ -63,6 +65,9 @@ export default function App(
 
   // --- Neynar user hook ---
   const { user: neynarUser } = useNeynarUser(context || undefined);
+  
+  // Sync user to Supabase
+  useUserSync();
 
   // --- Effects ---
   /**
@@ -110,6 +115,7 @@ export default function App(
 
         {/* Tab content rendering */}
         {currentTab === Tab.Home && <HomeTab />}
+        {currentTab === Tab.Leaderboard && <LeaderboardTab />}
         {currentTab === Tab.Actions && <ActionsTab />}
         {currentTab === Tab.Context && <ContextTab />}
         {currentTab === Tab.Wallet && <WalletTab />}

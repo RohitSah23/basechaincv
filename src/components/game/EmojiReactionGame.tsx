@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useMiniApp } from "@neynar/react";
 import { Zap, Trophy, Timer, RotateCcw, Medal, Target } from "lucide-react";
 
 // --- Types ---
@@ -110,42 +111,52 @@ export default function EmojiReactionGame() {
     }
   };
 
+  const { context } = useMiniApp();
+
   const handleSuccess = (timeMs: number) => {
     const baseScore = Math.max(0, 1000 - timeMs);
     const newStreak = streak + 1;
     const roundScore = Math.floor(baseScore + (newStreak * 100));
 
-    setScore((prev) => prev + roundScore); // Accumulate score? Or replace? 
-    // User said: "Correct tap -> score + streak ... Wrong tap -> instant fail ... No score saved".
-    // "Leaderboard updated".
-    // Let's treat "Score" as "Current Run Score". High Score board tracks "Best Run Score".
-    // Or if previous logic was "Single Round Score", the accumulation makes more sense for a "Game".
-    // Let's do Cumulative Score for the Run.
-    
+    setScore((prev) => {
+       const newTotal = prev + roundScore;
+       
+       // Submit to API
+       if (context?.user) {
+         fetch("/api/score", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ 
+             fid: context.user.fid, 
+             score: newTotal, 
+             time: timeMs 
+           }),
+         }).catch(err => console.error("Score submit failed", err));
+       }
+       
+       return newTotal;
+    });
+
     setStreak(newStreak);
     setFeedback("correct");
-    setGameState("done"); // Paused briefy
+    setGameState("done"); 
 
-    // We don't save to leaderboard on every tap, only on Game Over generally, 
-    // BUT user said "Correct Emoji -> Leaderboard updated". 
-    // If it's single-round based, then "Score" is just that round.
-    // Let's stick to the previous logic: Score is PER ROUND (Reaction based).
-    // Actually, "Streak Bonus" implies a game loop.
-    // Let's track "Best Single Click Score" as the metric for now based on previous simple logic.
-    const newEntryScore = roundScore; 
-
-    // Update Leaderboard immediately (per user request)
+    // Update Local Leaderboard for visual consistency immediately
     const currentData = loadLeaderboard();
     const newBestTime = Math.min(currentData.bestTime || Infinity, timeMs);
     
-    const newEntry: ScoreEntry = { score: newEntryScore, time: timeMs, date: Date.now() };
+    // We only track "Session Runs" locally for now in this view? 
+    // Actually let's keep the leaderboard component below powered by the API or local?
+    // User wants "in leaderboard we show rank fid points". 
+    // The component below is "Top Reactions". Let's keep it local for instant feedback
+    // but the MAIN leaderboard tab is global.
+    const newEntry: ScoreEntry = { score: roundScore, time: timeMs, date: Date.now() };
     const allScores = [...currentData.topScores, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
     
     const newData = { topScores: allScores, bestTime: newBestTime };
     saveLeaderboard(newData);
     setLeaderboard(newData);
 
-    // Auto next round
     timeoutRef.current = setTimeout(nextRound, 1200);
   };
 

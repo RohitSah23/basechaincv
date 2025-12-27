@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Home, Compass, ClipboardList, Wallet } from "lucide-react";
+import { Home, Compass, ClipboardList, Wallet, Trophy } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Tab } from "~/components/App";
 
@@ -33,6 +33,18 @@ export const Footer: React.FC<FooterProps> = ({
           )}
         >
           <Home className="w-6 h-6" strokeWidth={activeTab === Tab.Home ? 2.5 : 2} />
+        </button>
+
+        <button
+          onClick={() => setActiveTab(Tab.Leaderboard)}
+          className={cn(
+            "flex flex-col items-center justify-center w-full h-full transition-colors duration-200",
+            activeTab === Tab.Leaderboard 
+              ? "text-primary" 
+              : "text-gray-600 hover:text-gray-600 dark:hover:text-gray-300"
+          )}
+        >
+          <Trophy className="w-6 h-6" strokeWidth={activeTab === Tab.Leaderboard ? 2.5 : 2} />
         </button>
 
         <button
