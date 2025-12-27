@@ -21,7 +21,7 @@ interface LeaderboardData {
 // --- Constants ---
 const GRID_SIZE = 16;
 const TARGET_EMOJI = "✅";
-const DECOY_EMOJIS = ["❌", "🔥", "💣", "😂", "💀", "⚠️", "🍕", "🐍", "👀", "🧠", "👻", "😈"];
+const DECOY_EMOJIS = ["❌", "🔥", "💣", "💀", "🍕", "🐍", "👀", "🧠", "👻", "😈", "💎", "🚀", "🍆"];
 const STORAGE_KEY = "emoji_reaction_grid_data";
 
 // --- Helpers ---
@@ -83,7 +83,7 @@ export default function EmojiReactionGame() {
   const nextRound = useCallback(() => {
     setGameState("waiting");
     setFeedback("none");
-    setGrid(Array(GRID_SIZE).fill("")); // Clean visuals during wait
+    setGrid(Array(GRID_SIZE).fill("?")); // Show ? during wait
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
@@ -145,11 +145,6 @@ export default function EmojiReactionGame() {
     const currentData = loadLeaderboard();
     const newBestTime = Math.min(currentData.bestTime || Infinity, timeMs);
     
-    // We only track "Session Runs" locally for now in this view? 
-    // Actually let's keep the leaderboard component below powered by the API or local?
-    // User wants "in leaderboard we show rank fid points". 
-    // The component below is "Top Reactions". Let's keep it local for instant feedback
-    // but the MAIN leaderboard tab is global.
     const newEntry: ScoreEntry = { score: roundScore, time: timeMs, date: Date.now() };
     const allScores = [...currentData.topScores, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
     
@@ -167,91 +162,78 @@ export default function EmojiReactionGame() {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto flex flex-col items-center select-none bg-zinc-900/50 p-6 rounded-[40px] border border-white/5 shadow-2xl backdrop-blur-3xl">
+    <div className="w-full max-w-xl mx-auto flex flex-col items-center select-none">
       
-      {/* 1. Glass HUD */}
-      <div className="w-full grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 p-4 rounded-3xl flex items-center justify-between shadow-lg">
-           <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Current Streak</span>
-              <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-yellow-400 to-orange-500 font-mono">
-                {streak}
-              </span>
-           </div>
-           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-yellow-400/20 to-orange-500/20 flex items-center justify-center border border-yellow-500/30">
-             <Zap className="h-5 w-5 text-yellow-400" fill="currentColor" />
-           </div>
-        </div>
+      {/* 1. Minimal HUD */}
+      <div className="w-full flex items-center justify-between px-4 mb-8">
+         <div className="flex flex-col items-start">
+             <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 dark:text-gray-500 mb-1">Streak</span>
+             <div className="flex items-center gap-2">
+                 <Zap className="h-4 w-4 text-orange-500" fill="currentColor" />
+                 <span className="text-3xl font-black text-gray-900 dark:text-white font-mono leading-none">{streak}</span>
+             </div>
+         </div>
 
-        <div className="bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 p-4 rounded-3xl flex items-center justify-between shadow-lg">
-           <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Last Score</span>
-              <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-cyan-400 to-blue-500 font-mono">
-                {score}
-              </span>
-           </div>
-           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-cyan-400/20 to-blue-500/20 flex items-center justify-center border border-blue-500/30">
-             <Trophy className="h-5 w-5 text-cyan-400" fill="currentColor" />
-           </div>
-        </div>
+         <div className="flex flex-col items-end">
+             <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 dark:text-gray-500 mb-1">Score</span>
+             <div className="flex items-center gap-2">
+                 <span className="text-3xl font-black text-gray-900 dark:text-white font-mono leading-none">{score}</span>
+                 <Trophy className="h-4 w-4 text-blue-500" fill="currentColor" />
+             </div>
+         </div>
       </div>
 
       {/* 2. The Game Grid */}
       <div className="relative w-full max-w-[360px] aspect-square">
-        {/* Waiting State Pulse */}
-        {gameState === "waiting" && (
-           <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="w-24 h-24 bg-white/5 rounded-full animate-ping opacity-20"></div>
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md animate-pulse">
-                <Timer className="h-6 w-6 text-white/50" />
-              </div>
-           </div>
-        )}
-
-        {/* Start Overlay */}
+        
+        {/* Start Overlay - Minimalist */}
         {gameState === "idle" && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md rounded-3xl p-6 border border-white/10 text-center">
-              <div className="mb-6 relative">
-                 <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 rounded-full"></div>
-                 <Target className="h-16 w-16 text-blue-400 relative z-10" />
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/95 dark:bg-black/90 backdrop-blur-sm rounded-[32px] animate-in fade-in duration-500">
+              <div className="mb-6">
+                 <Target className="h-12 w-12 text-blue-600 dark:text-blue-500" strokeWidth={1.5} />
               </div>
-              <h1 className="text-4xl font-black text-white tracking-tight mb-2">Base Catch</h1>
-              <p className="text-white/60 text-sm mb-8 font-medium">Tap <span className="bg-white/10 px-1.5 py-0.5 rounded text-white">{TARGET_EMOJI}</span> instantly.</p>
+              
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
+                Base Catch
+              </h1>
+              
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
+                Tap <span className="inline-block scale-125 mx-1">{TARGET_EMOJI}</span>
+              </p>
               
               <button 
                 onClick={startNewGame}
-                className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-2xl hover:scale-105 active:scale-95 transition-all duration-200 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] overflow-hidden"
+                className="group flex items-center gap-3 px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black font-semibold rounded-full hover:scale-105 active:scale-95 transition-all shadow-md"
               >
-                <span className="relative z-10 flex items-center gap-2">
-                   PLAY NOW <Zap className="h-4 w-4 fill-black" />
+                <span>Start Game</span>
+                <span className="bg-white/20 dark:bg-black/10 rounded-full p-1">
+                   <Zap className="h-3 w-3 fill-current" />
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
               </button>
             </div>
         )}
 
         {/* Game Over Overlay */}
         {gameState === "done" && feedback === "wrong" && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-red-950/80 backdrop-blur-xl rounded-3xl p-6 border border-red-500/20 text-center animate-in zoom-in-95 duration-200">
-               <div className="text-6xl mb-4 animate-bounce">💀</div>
-               <h2 className="text-3xl font-black text-rose-500 mb-1">FAIL!</h2>
-               <p className="text-rose-200/60 font-medium mb-6">Wrong emoji tapped</p>
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 dark:bg-black/80 backdrop-blur-xl rounded-[30px] p-6 border border-red-100 dark:border-red-500/30 text-center animate-in zoom-in-95 duration-200">
+               <div className="text-7xl mb-6 animate-bounce drop-shadow-md">💀</div>
+               <h2 className="text-4xl font-black text-rose-600 dark:text-rose-500 mb-1 tracking-tight">GAME OVER</h2>
+               <p className="text-rose-900/60 dark:text-rose-200/60 font-medium mb-8">Reflexes too slow!</p>
                
                <button 
                  onClick={startNewGame}
-                 className="px-6 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-500 transition-colors flex items-center gap-2 shadow-lg shadow-rose-900/50"
+                 className="px-8 py-4 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-500 active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-rose-500/40"
                >
-                 <RotateCcw className="h-4 w-4" /> Try Again
+                 <RotateCcw className="h-5 w-5" /> Try Again
                </button>
             </div>
         )}
 
         {/* Grid Cells */}
-        <div className={`grid grid-cols-4 gap-3 w-full h-full transition-all duration-500 ${gameState === "waiting" ? "scale-95 opacity-50 blur-[2px]" : "scale-100 opacity-100 blur-0"}`}>
+        <div className={`grid grid-cols-4 gap-3 w-full h-full p-2 transition-all duration-500 ${gameState === "waiting" ? "scale-95 opacity-50 blur-[2px]" : "scale-100 opacity-100 blur-0"}`}>
           {grid.map((emoji, idx) => {
             const isTarget = emoji === TARGET_EMOJI;
             const isCorrect = feedback === "correct" && isTarget;
-            // Only dim if feedback is showing and this isn't the one
             const isDimmed = feedback !== "none" && !isTarget;
 
             return (
@@ -260,70 +242,71 @@ export default function EmojiReactionGame() {
                 onPointerDown={() => handleTap(idx)}
                 className={`
                   relative rounded-2xl flex items-center justify-center text-3xl sm:text-4xl
-                  transition-all duration-200 cursor-pointer
-                  border border-white/5 shadow-sm
-                  ${gameState === "ready" ? "hover:scale-[1.02] active:scale-95 bg-white/5 dark:bg-white/5 hover:bg-white/10" : ""}
-                  ${gameState === "waiting" ? "bg-transparent border-transparent" : ""}
-                  ${isCorrect ? "bg-emerald-500/20 border-emerald-500 text-emerald-100 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] scale-110 z-10" : ""}
-                  ${isDimmed ? "opacity-30 scale-90 grayscale" : ""}
+                  transition-all duration-150 cursor-pointer select-none
+                  border shadow-sm
+                  ${gameState === "ready" ? "hover:scale-[1.05] active:scale-95 bg-gray-50 dark:bg-white/5 data-[state=idle]:bg-transparent hover:bg-gray-100 dark:hover:bg-white/10 border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/20 hover:shadow-md" : "border-transparent"}
+                  ${gameState === "waiting" ? "bg-white/50 dark:bg-white/5 border-indigo-100 dark:border-white/10" : ""}
+                  ${isCorrect ? "bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-100 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] scale-110 z-10" : ""}
+                  ${isDimmed ? "opacity-20 scale-90 blur-[1px] grayscale" : ""}
                 `}
               >
-                  {gameState !== "waiting" && emoji}
+                  <span className={`drop-shadow-sm filter font-bold ${gameState === "waiting" ? "animate-pulse text-indigo-500 dark:text-blue-400" : ""}`}>
+                     {emoji}
+                  </span>
                   
                   {/* Burst effect on success */}
                   {isCorrect && (
-                    <div className="absolute inset-0 rounded-2xl animate-ping bg-emerald-400 opacity-20 duration-500"></div>
+                    <>
+                        <div className="absolute inset-0 rounded-2xl animate-ping bg-emerald-400 opacity-20 duration-500"></div>
+                        <div className="absolute inset-0 rounded-2xl ring-2 ring-emerald-400 opacity-50 animate-pulse"></div>
+                    </>
                   )}
               </div>
             );
           })}
         </div>
       </div>
+      
+      {/* 3. Session Best (Minimalist List) */}
+      <div className="w-full mt-12 max-w-[320px]">
+         <div className="flex items-center justify-between mb-4 px-2">
+             <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Session Best (Top 10)</span>
+             {leaderboard.bestTime && (
+                <span className="text-xs font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                   PB: {Math.floor(leaderboard.bestTime)}ms
+                </span>
+             )}
+         </div>
 
-      {/* 3. Leaderboard Card */}
-      <div className="w-full mt-10 p-1">
-        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-md rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
-           <div className="p-4 bg-white/5 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white/70">
-                 <Medal className="h-4 w-4 text-purple-400" />
-                 <span className="text-xs font-bold uppercase tracking-wider">Top Reactions</span>
-              </div>
-              {leaderboard.bestTime && (
-                <div className="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
-                   BEST: {Math.floor(leaderboard.bestTime)}MS
-                </div>
-              )}
-           </div>
-
-           <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
-              {leaderboard.topScores.length === 0 ? (
-                 <div className="p-8 text-center text-white/20 text-sm">
-                    No scores yet. <br/> Be the first legend!
+         <div className="flex flex-col gap-2">
+             {leaderboard.topScores.length === 0 ? (
+                 <div className="text-center py-6 border-2 border-dashed border-gray-100 dark:border-white/5 rounded-2xl">
+                    <span className="text-xs text-gray-300 dark:text-gray-700">No games played yet</span>
                  </div>
-              ) : (
-                <table className="w-full text-left text-sm">
-                   <tbody className="divide-y divide-white/5">
-                      {leaderboard.topScores.map((entry, i) => (
-                        <tr key={i} className="group hover:bg-white/5 transition-colors">
-                           <td className="py-3 px-4 w-12 text-center font-mono text-white/30 text-xs">
-                             #{i+1}
-                           </td>
-                           <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white/90">{entry.score}</span>
-                                <span className="text-[10px] bg-white/10 px-1 rounded text-white/50">PTS</span>
-                              </div>
-                           </td>
-                           <td className="py-3 px-4 text-right text-white/50 font-mono text-xs">
-                              {Math.floor(entry.time)}ms
-                           </td>
-                        </tr>
-                      ))}
-                   </tbody>
-                </table>
-              )}
-           </div>
-        </div>
+             ) : (
+                leaderboard.topScores.slice(0, 10).map((entry, i) => (
+                   <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                       <div className="flex items-center gap-3">
+                           <span className={`
+                              text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full
+                              ${i === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500 dark:text-black' : 
+                                i === 1 ? 'bg-gray-100 text-gray-600 dark:bg-white dark:text-black' : 
+                                i === 2 ? 'bg-orange-50 text-orange-600 dark:bg-orange-600 dark:text-black' : 
+                                'bg-gray-50 text-gray-400 dark:bg-white/10 dark:text-white/50'}
+                           `}>
+                              {i + 1}
+                           </span>
+                           <span className="font-mono font-bold text-gray-900 dark:text-white text-sm">
+                              {entry.score} <span className="text-[10px] text-gray-400 dark:text-white/40 font-normal ml-0.5">XP</span>
+                           </span>
+                       </div>
+                       <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                           {Math.floor(entry.time)}ms
+                       </span>
+                   </div>
+                ))
+             )}
+         </div>
       </div>
 
       <style jsx global>{`
