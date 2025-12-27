@@ -1,31 +1,30 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Copy, Trophy, Target, Zap, RotateCcw, Share2, Medal } from "lucide-react";
+import { Zap, Trophy, Timer, RotateCcw, Medal, Target } from "lucide-react";
 
 // --- Types ---
 type GameState = "idle" | "waiting" | "ready" | "done";
 
 interface ScoreEntry {
   score: number;
-  time: number; // reaction time in ms
-  date: number; // timestamp
+  time: number;
+  date: number;
 }
 
 interface LeaderboardData {
-  topScores: ScoreEntry[]; // Max 10
-  bestTime: number | null; // Min reaction time
+  topScores: ScoreEntry[];
+  bestTime: number | null;
 }
 
-// --- Constants & Config ---
+// --- Constants ---
 const GRID_SIZE = 16;
 const TARGET_EMOJI = "✅";
 const DECOY_EMOJIS = ["❌", "🔥", "💣", "😂", "💀", "⚠️", "🍕", "🐍", "👀", "🧠", "👻", "😈"];
-const BASE_SCORE_MAX = 1000;
-const STREAK_BONUS = 100;
+const STORAGE_KEY = "emoji_reaction_grid_data";
 
-// --- Helper Functions ---
-const getRandomDelay = () => Math.floor(Math.random() * (3500 - 1500 + 1) + 1500); // 1.5s - 3.5s
+// --- Helpers ---
+const getRandomDelay = () => Math.floor(Math.random() * (3500 - 1500 + 1) + 1500);
 
 const generateGrid = (): string[] => {
   const grid = new Array(GRID_SIZE).fill(null);
@@ -42,9 +41,6 @@ const generateGrid = (): string[] => {
   return grid;
 };
 
-// --- Storage Logic ---
-const STORAGE_KEY = "emoji_reaction_grid_data";
-
 const loadLeaderboard = (): LeaderboardData => {
   if (typeof window === "undefined") return { topScores: [], bestTime: null };
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -58,299 +54,279 @@ const saveLeaderboard = (data: LeaderboardData) => {
 };
 
 export default function EmojiReactionGame() {
-  // --- State ---
   const [gameState, setGameState] = useState<GameState>("idle");
   const [grid, setGrid] = useState<string[]>(Array(GRID_SIZE).fill("❓"));
   const [streak, setStreak] = useState(0);
   const [score, setScore] = useState(0);
-  const [lastReactionTime, setLastReactionTime] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardData>({ topScores: [], bestTime: null });
   const [feedback, setFeedback] = useState<"none" | "correct" | "wrong">("none");
+  const [targetIndex, setTargetIndex] = useState<number>(-1);
 
-  // --- Refs ---
   const startTimeRef = useRef<number>(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Effects ---
   useEffect(() => {
-    // Load leaderboard on mount
     setLeaderboard(loadLeaderboard());
-  }, []);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
-  // --- Game Loop Logic ---
-
-  const startGame = useCallback(() => {
-    setGameState("waiting");
-    setFeedback("none");
-    setGrid(Array(GRID_SIZE).fill("...")); // Loading/Waiting state visual
-    // Keep streak and score if coming from a "correct" continue, but reset if it was a fail.
-    // Actually, logic says: "Correct tap -> score + streak... Wrong tap -> instant fail".
-    // So "startGame" is called initially or after a fail (new game) or after a success (next round).
-    // Let's differentiate "nextRound" vs "newGame".
-  }, []);
-
   const startNewGame = () => {
     setScore(0);
     setStreak(0);
-    setLastReactionTime(null);
+    setGameState("waiting");
     nextRound();
   };
 
-  const nextRound = () => {
+  const nextRound = useCallback(() => {
     setGameState("waiting");
     setFeedback("none");
-    // Show waiting state (maybe empty grid or spinners)
-    setGrid(Array(GRID_SIZE).fill("⏳"));
-    
-    const delay = getRandomDelay();
+    setGrid(Array(GRID_SIZE).fill("")); // Clean visuals during wait
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
+    const delay = getRandomDelay();
+    
     timeoutRef.current = setTimeout(() => {
       const newGrid = generateGrid();
+      const newTargetIndex = newGrid.indexOf(TARGET_EMOJI);
       setGrid(newGrid);
+      setTargetIndex(newTargetIndex);
       setGameState("ready");
       startTimeRef.current = performance.now();
     }, delay);
-  };
+  }, []);
 
   const handleTap = (index: number) => {
     if (gameState !== "ready") return;
 
-    const clickedEmoji = grid[index];
-    const endTime = performance.now();
-    const reactionTime = endTime - startTimeRef.current;
+    const reactionTime = performance.now() - startTimeRef.current;
     
-    if (clickedEmoji === TARGET_EMOJI) {
-      // Correct!
+    if (grid[index] === TARGET_EMOJI) {
       handleSuccess(reactionTime);
     } else {
-      // Wrong!
-      handleFail(reactionTime); // Fail time doesn't really matter for score, but maybe for stats
+      handleFail();
     }
   };
 
   const handleSuccess = (timeMs: number) => {
-    // 1. Calculate Score
-    // baseScore = max(0, 1000 - reactionTime)
     const baseScore = Math.max(0, 1000 - timeMs);
-    // finalScore = baseScore + (streak * 100) -> Wait, user says "Correct tap -> streak + 1". 
-    // Is score cumulative for a session? Or per round?
-    // "Top scores stored locally". Usually "Score" implies total game score or max single-reaction score?
-    // User says: "Correct tap -> score + streak... Result Conditions... Score calculated... Leaderboard updated".
-    // And "Wrong tap -> instant fail... Round ends immediately... No score saved".
-    // This implies the "Score" on the leaderboard is likely the "Single Round Score" OR the "Total Session Score before failing".
-    // "Streak Bonus: finalScore = baseScore + (streak * 100)".
-    // If it's a "Result shown" after EVERY correct tap, maybe it's just a reaction test tool.
-    // BUT "Wrong tap -> Round ends... Streak resets".
-    // Let's assume High Score is based on the *Score calculated for that specific tap*? Or the *Total Score accumulated in a streak*?
-    // "Score calculated ... Leaderboard updated" on Correct Emoji.
-    // If I tap 5 times, do I get 5 entries in leaderboard? Probably not efficient.
-    // Maybe Leaderboard is for "Highest Single Tap Score" or "Longest Streak"?
-    // User says "sorted by highest score".
-    // Let's assume it's "Single Round Score" (Reaction + Streak Bonus). 
-    // So a fast reaction with high streak = massive score.
-    // Let's implement it that way.
-
     const newStreak = streak + 1;
-    const finalRoundScore = Math.floor(baseScore + (newStreak * 100)); // Ensure integer
+    const roundScore = Math.floor(baseScore + (newStreak * 100));
 
-    setLastReactionTime(timeMs);
-    setScore(finalRoundScore);
+    setScore((prev) => prev + roundScore); // Accumulate score? Or replace? 
+    // User said: "Correct tap -> score + streak ... Wrong tap -> instant fail ... No score saved".
+    // "Leaderboard updated".
+    // Let's treat "Score" as "Current Run Score". High Score board tracks "Best Run Score".
+    // Or if previous logic was "Single Round Score", the accumulation makes more sense for a "Game".
+    // Let's do Cumulative Score for the Run.
+    
     setStreak(newStreak);
     setFeedback("correct");
-    
-    // Update Leaderboard
-    updateLeaderboard(finalRoundScore, timeMs);
+    setGameState("done"); // Paused briefy
 
-    // Auto-proceed or wait?
-    // User: "Game States... done -> Result shown".
-    // User: "Correct Emoji -> .. Streak increased .. Leaderboard updated".
-    // User: "Wrong Emoji -> Round ends immediately .. Streak resets".
-    // It seems like if correct, we might want to continue to keep the streak?
-    // "idle -> waiting -> ready -> done" implies a single cycle?
-    // But "Streak" implies multiple rounds.
-    // So: Correct -> Show Result (briefly?) -> Waiting -> Ready...
-    // Let's stick to: Correct -> Show Feedback -> Auto-Transition to Waiting (Next Round).
-    // If Wrong -> Show Feedback -> Go to Idle/Game Over.
+    // We don't save to leaderboard on every tap, only on Game Over generally, 
+    // BUT user said "Correct Emoji -> Leaderboard updated". 
+    // If it's single-round based, then "Score" is just that round.
+    // Let's stick to the previous logic: Score is PER ROUND (Reaction based).
+    // Actually, "Streak Bonus" implies a game loop.
+    // Let's track "Best Single Click Score" as the metric for now based on previous simple logic.
+    const newEntryScore = roundScore; 
 
-    setGameState("done"); 
-    
-    // Auto restart after correct match (to keep flow)
-    timeoutRef.current = setTimeout(() => {
-      nextRound();
-    }, 1500); // 1.5s delay to see result
-  };
-
-  const handleFail = (_timeMs: number) => {
-    setFeedback("wrong");
-    setStreak(0); // Reset streak
-    // Score not saved
-    setGameState("done"); // Game Over
-    // Don't auto-restart, let user reflect.
-  };
-
-  const updateLeaderboard = (newScore: number, timeMs: number) => {
+    // Update Leaderboard immediately (per user request)
     const currentData = loadLeaderboard();
+    const newBestTime = Math.min(currentData.bestTime || Infinity, timeMs);
     
-    // Update Best Time
-    const previousBest = currentData.bestTime || Infinity;
-    const newBestTime = Math.min(previousBest, timeMs);
-
-    // Update Scores
-    const newEntry: ScoreEntry = { score: newScore, time: timeMs, date: Date.now() };
-    const allScores = [...currentData.topScores, newEntry];
-    // Sort desc by score
-    allScores.sort((a, b) => b.score - a.score);
-    // Keep top 10
-    const top10 = allScores.slice(0, 10);
-
-    const newData: LeaderboardData = {
-      topScores: top10,
-      bestTime: newBestTime === Infinity ? null : newBestTime
-    };
-
+    const newEntry: ScoreEntry = { score: newEntryScore, time: timeMs, date: Date.now() };
+    const allScores = [...currentData.topScores, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
+    
+    const newData = { topScores: allScores, bestTime: newBestTime };
     saveLeaderboard(newData);
     setLeaderboard(newData);
+
+    // Auto next round
+    timeoutRef.current = setTimeout(nextRound, 1200);
   };
 
-  // --- Render Helpers ---
-  const getCellClass = (emoji: string, index: number) => {
-    // Base classes
-    let classes = "aspect-square flex items-center justify-center text-2xl sm:text-4xl bg-white/10 dark:bg-black/20 rounded-xl cursor-pointer transition-all duration-100 select-none shadow-sm backdrop-blur-sm border border-white/10";
-    
-    // Active state
-    if (gameState === "ready") {
-      classes += " active:scale-95 hover:bg-white/20 dark:hover:bg-white/10";
-    }
-
-    // Feedback state
-    if (gameState === "done") {
-      if (emoji === TARGET_EMOJI && feedback === "correct") {
-        classes += " bg-green-500/50 border-green-400 text-white animate-pulse scale-105";
-      } else if (emoji !== TARGET_EMOJI && feedback === "wrong" && grid[index] === TARGET_EMOJI) {
-         // Show where the correct one was if they missed
-         classes += " bg-yellow-500/50 border-yellow-400 opacity-80";
-      } else if (feedback === "wrong" && grid[index] !== TARGET_EMOJI) {
-        // If they clicked this one and it was wrong... simpler logic: just highlight clicked? 
-        // We don't track clicked index in state easily unless we add it. 
-        // For now, assume global "wrong" feedback turns whole grid red or something?
-        // Let's just keep it simple.
-      }
-    }
-
-    return classes;
+  const handleFail = () => {
+    setFeedback("wrong");
+    setStreak(0);
+    setGameState("done");
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-4 flex flex-col items-center">
-      {/* Header / HUD */}
-      <div className="w-full flex justify-between items-center mb-6 p-4 bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-2xl shadow-sm border border-white/20">
-        <div className="flex flex-col items-start">
-           <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Streak</span>
-           <div className="flex items-center gap-2 text-2xl font-bold text-orange-500">
-             <Zap className="h-6 w-6 fill-current" />
-             {streak}
-           </div>
-        </div>
-        
-        <div className="flex flex-col items-end">
-           <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Score</span>
-           <div className="flex items-center gap-2 text-2xl font-bold text-blue-500">
-             <Trophy className="h-6 w-6 fill-current" />
-             {score}
-           </div>
-        </div>
-      </div>
-
-      {/* Main Game Area */}
-      <div className="relative mb-8">
-        <div className={`grid grid-cols-4 gap-3 transition-opacity duration-300 ${gameState === "waiting" ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
-          {grid.map((emoji, index) => (
-            <div
-              key={index}
-              onPointerDown={() => handleTap(index)}
-              className={getCellClass(emoji, index)}
-            >
-              {gameState === "waiting" ? "❓" : emoji}
-            </div>
-          ))}
-        </div>
-
-        {/* Overlays */}
-        {gameState === "idle" && (
-           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-2xl z-10 p-6 text-center">
-             <h2 className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">Emoji Reaction</h2>
-             <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-xs">Tap <span className="text-2xl align-middle">✅</span> as fast as you can. Avoid the decoys!</p>
-             <button 
-               onClick={startNewGame}
-               className="px-8 py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all active:scale-95 flex items-center gap-2"
-             >
-               <Target className="h-5 w-5" /> Start Game
-             </button>
-           </div>
-        )}
-
-        {gameState === "done" && feedback === "wrong" && (
-           <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/40 backdrop-blur-sm rounded-2xl z-10 animate-in fade-in zoom-in duration-200">
-             <div className="text-6xl mb-4">💀</div>
-             <h3 className="text-2xl font-bold text-white mb-2">Game Over!</h3>
-             <p className="text-white/80 mb-6">Streak Broken</p>
-             <button 
-               onClick={startNewGame}
-               className="px-6 py-2 bg-white text-red-600 font-bold rounded-full shadow-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
-             >
-               <RotateCcw className="h-4 w-4" /> Try Again
-             </button>
-           </div>
-        )}
-        
-        {/* Waiting State Overlay for "Get Ready" effect if desired, but opacity handle is decent */}
-      </div>
-
-      {/* Stats / Leaderboard */}
-      <div className="w-full bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-white/20">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-4 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-center gap-2">
-            <Medal className="h-4 w-4" /> Top Scores
-        </h3>
-        
-        {/* Best Time */}
-        {leaderboard.bestTime && (
-            <div className="mb-4 flex justify-between items-center bg-green-100/50 dark:bg-green-900/20 p-2 rounded-lg">
-                <span className="text-sm font-medium text-green-700 dark:text-green-300">⚡ Best Reaction</span>
-                <span className="text-base font-bold text-green-700 dark:text-green-300">{Math.floor(leaderboard.bestTime)}ms</span>
-            </div>
-        )}
-
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-          {leaderboard.topScores.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-4">No scores yet. Be the first!</p>
-          ) : (
-            leaderboard.topScores.map((entry, i) => (
-              <div key={i} className="flex justify-between items-center text-sm p-2 hover:bg-white/40 dark:hover:bg-white/5 rounded-lg transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className={`flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${i === 0 ? 'bg-yellow-400 text-yellow-900' : i === 1 ? 'bg-gray-300 text-gray-800' : i === 2 ? 'bg-orange-300 text-orange-900' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
-                    {i + 1}
-                  </span>
-                  <span className="text-gray-700 dark:text-gray-200 font-medium">{Math.floor(entry.time)}ms</span>
-                </div>
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{entry.score} pts</span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+    <div className="w-full max-w-xl mx-auto flex flex-col items-center select-none bg-zinc-900/50 p-6 rounded-[40px] border border-white/5 shadow-2xl backdrop-blur-3xl">
       
-      <p className="mt-8 text-xs text-gray-400 text-center">
-        Tap the <span className="font-bold text-gray-500">{TARGET_EMOJI}</span>. Ignore the decoys. <br/> Faster reaction = Higher score!
-      </p>
+      {/* 1. Glass HUD */}
+      <div className="w-full grid grid-cols-2 gap-4 mb-8">
+        <div className="bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 p-4 rounded-3xl flex items-center justify-between shadow-lg">
+           <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Current Streak</span>
+              <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-yellow-400 to-orange-500 font-mono">
+                {streak}
+              </span>
+           </div>
+           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-yellow-400/20 to-orange-500/20 flex items-center justify-center border border-yellow-500/30">
+             <Zap className="h-5 w-5 text-yellow-400" fill="currentColor" />
+           </div>
+        </div>
+
+        <div className="bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 p-4 rounded-3xl flex items-center justify-between shadow-lg">
+           <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Last Score</span>
+              <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-cyan-400 to-blue-500 font-mono">
+                {score}
+              </span>
+           </div>
+           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-cyan-400/20 to-blue-500/20 flex items-center justify-center border border-blue-500/30">
+             <Trophy className="h-5 w-5 text-cyan-400" fill="currentColor" />
+           </div>
+        </div>
+      </div>
+
+      {/* 2. The Game Grid */}
+      <div className="relative w-full max-w-[360px] aspect-square">
+        {/* Waiting State Pulse */}
+        {gameState === "waiting" && (
+           <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="w-24 h-24 bg-white/5 rounded-full animate-ping opacity-20"></div>
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md animate-pulse">
+                <Timer className="h-6 w-6 text-white/50" />
+              </div>
+           </div>
+        )}
+
+        {/* Start Overlay */}
+        {gameState === "idle" && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md rounded-3xl p-6 border border-white/10 text-center">
+              <div className="mb-6 relative">
+                 <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 rounded-full"></div>
+                 <Target className="h-16 w-16 text-blue-400 relative z-10" />
+              </div>
+              <h1 className="text-4xl font-black text-white tracking-tight mb-2">Base Catch</h1>
+              <p className="text-white/60 text-sm mb-8 font-medium">Tap <span className="bg-white/10 px-1.5 py-0.5 rounded text-white">{TARGET_EMOJI}</span> instantly.</p>
+              
+              <button 
+                onClick={startNewGame}
+                className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-2xl hover:scale-105 active:scale-95 transition-all duration-200 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                   PLAY NOW <Zap className="h-4 w-4 fill-black" />
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              </button>
+            </div>
+        )}
+
+        {/* Game Over Overlay */}
+        {gameState === "done" && feedback === "wrong" && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-red-950/80 backdrop-blur-xl rounded-3xl p-6 border border-red-500/20 text-center animate-in zoom-in-95 duration-200">
+               <div className="text-6xl mb-4 animate-bounce">💀</div>
+               <h2 className="text-3xl font-black text-rose-500 mb-1">FAIL!</h2>
+               <p className="text-rose-200/60 font-medium mb-6">Wrong emoji tapped</p>
+               
+               <button 
+                 onClick={startNewGame}
+                 className="px-6 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-500 transition-colors flex items-center gap-2 shadow-lg shadow-rose-900/50"
+               >
+                 <RotateCcw className="h-4 w-4" /> Try Again
+               </button>
+            </div>
+        )}
+
+        {/* Grid Cells */}
+        <div className={`grid grid-cols-4 gap-3 w-full h-full transition-all duration-500 ${gameState === "waiting" ? "scale-95 opacity-50 blur-[2px]" : "scale-100 opacity-100 blur-0"}`}>
+          {grid.map((emoji, idx) => {
+            const isTarget = emoji === TARGET_EMOJI;
+            const isCorrect = feedback === "correct" && isTarget;
+            // Only dim if feedback is showing and this isn't the one
+            const isDimmed = feedback !== "none" && !isTarget;
+
+            return (
+              <div
+                key={idx}
+                onPointerDown={() => handleTap(idx)}
+                className={`
+                  relative rounded-2xl flex items-center justify-center text-3xl sm:text-4xl
+                  transition-all duration-200 cursor-pointer
+                  border border-white/5 shadow-sm
+                  ${gameState === "ready" ? "hover:scale-[1.02] active:scale-95 bg-white/5 dark:bg-white/5 hover:bg-white/10" : ""}
+                  ${gameState === "waiting" ? "bg-transparent border-transparent" : ""}
+                  ${isCorrect ? "bg-emerald-500/20 border-emerald-500 text-emerald-100 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)] scale-110 z-10" : ""}
+                  ${isDimmed ? "opacity-30 scale-90 grayscale" : ""}
+                `}
+              >
+                  {gameState !== "waiting" && emoji}
+                  
+                  {/* Burst effect on success */}
+                  {isCorrect && (
+                    <div className="absolute inset-0 rounded-2xl animate-ping bg-emerald-400 opacity-20 duration-500"></div>
+                  )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Leaderboard Card */}
+      <div className="w-full mt-10 p-1">
+        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-md rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+           <div className="p-4 bg-white/5 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white/70">
+                 <Medal className="h-4 w-4 text-purple-400" />
+                 <span className="text-xs font-bold uppercase tracking-wider">Top Reactions</span>
+              </div>
+              {leaderboard.bestTime && (
+                <div className="px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                   BEST: {Math.floor(leaderboard.bestTime)}MS
+                </div>
+              )}
+           </div>
+
+           <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+              {leaderboard.topScores.length === 0 ? (
+                 <div className="p-8 text-center text-white/20 text-sm">
+                    No scores yet. <br/> Be the first legend!
+                 </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                   <tbody className="divide-y divide-white/5">
+                      {leaderboard.topScores.map((entry, i) => (
+                        <tr key={i} className="group hover:bg-white/5 transition-colors">
+                           <td className="py-3 px-4 w-12 text-center font-mono text-white/30 text-xs">
+                             #{i+1}
+                           </td>
+                           <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white/90">{entry.score}</span>
+                                <span className="text-[10px] bg-white/10 px-1 rounded text-white/50">PTS</span>
+                              </div>
+                           </td>
+                           <td className="py-3 px-4 text-right text-white/50 font-mono text-xs">
+                              {Math.floor(entry.time)}ms
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+              )}
+           </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+      `}</style>
     </div>
   );
 }
