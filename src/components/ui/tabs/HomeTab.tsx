@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 import EmojiReactionGame from "~/components/game/EmojiReactionGame";
 
 /**
@@ -15,6 +17,24 @@ import EmojiReactionGame from "~/components/game/EmojiReactionGame";
  * ```
  */
 export function HomeTab() {
+  useEffect(() => {
+    const initMiniApp = async () => {
+      // Check if we've already prompted the user
+      const hasPrompted = localStorage.getItem("has_prompted_add_miniapp");
+      
+      if (!hasPrompted) {
+        try {
+          await sdk.actions.addMiniApp();
+          localStorage.setItem("has_prompted_add_miniapp", "true");
+        } catch (error) {
+          console.error("Failed to add mini app:", error);
+        }
+      }
+    };
+
+    initMiniApp();
+  }, []);
+
   return (
     <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-140px)] py-2 px-3">
       {/* Background Ambience */}

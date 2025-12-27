@@ -80,7 +80,7 @@ export const APP_ACCOUNT_ASSOCIATION: AccountAssociation | undefined =
  * Text displayed on the main action button.
  * Used for the primary call-to-action in the mini app.
  */
-export const APP_BUTTON_TEXT: string = 'BBe Based';
+export const APP_BUTTON_TEXT: string = 'Be Based';
 
 // --- Integration Configuration ---
 /**
