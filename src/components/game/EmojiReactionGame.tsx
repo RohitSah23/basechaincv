@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useMiniApp } from "@neynar/react";
-import { Zap, Trophy, Timer, RotateCcw, Medal, Target } from "lucide-react";
+import { Zap, Trophy, RotateCcw } from "lucide-react";
 
 // --- Types ---
 type GameState = "idle" | "waiting" | "ready" | "done";
@@ -61,7 +61,7 @@ export default function EmojiReactionGame() {
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardData>({ topScores: [], bestTime: null });
   const [feedback, setFeedback] = useState<"none" | "correct" | "wrong">("none");
-  const [targetIndex, setTargetIndex] = useState<number>(-1);
+  // const [targetIndex, setTargetIndex] = useState<number>(-1); // Unused
 
   const startTimeRef = useRef<number>(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -93,7 +93,7 @@ export default function EmojiReactionGame() {
       const newGrid = generateGrid();
       const newTargetIndex = newGrid.indexOf(TARGET_EMOJI);
       setGrid(newGrid);
-      setTargetIndex(newTargetIndex);
+      // setTargetIndex(newTargetIndex); // Unused
       setGameState("ready");
       startTimeRef.current = performance.now();
     }, delay);
@@ -250,7 +250,7 @@ export default function EmojiReactionGame() {
                onClick={startNewGame}
                className="group flex items-center gap-3 px-6 py-2 bg-primary dark:bg-white text-white dark:text-black font-bold text-lg rounded-xl hover:scale-105 active:scale-95 transition-all shadow-xl hover:shadow-2xl hover:shadow-gray-500/20 dark:hover:shadow-white/20"
              >
-               <span>Let's Catch Now</span>
+               <span>Let&apos;s Catch Now</span>
                <span className="bg-white/20 dark:bg-black/10 rounded-lg p-1">
                   <Zap className="h-4 w-4 fill-current" />
                </span>

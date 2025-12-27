@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Trophy, Medal, Timer, Award, Crown } from "lucide-react";
+import { Trophy, Medal, Crown } from "lucide-react";
 
 // --- Types ---
 interface LeaderboardEntry {
@@ -97,7 +97,7 @@ export function LeaderboardTab() {
                
                {rest.length === 0 && topThree.length > 0 && (
                   <div className="text-center py-8 text-gray-400 dark:text-white/20 text-xs italic">
-                      That's everyone so far!
+                      That&apos;s everyone so far!
                   </div>
                )}
             </div>
