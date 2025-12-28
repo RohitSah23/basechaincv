@@ -7,6 +7,9 @@ import { APP_NAME, APP_DESCRIPTION } from '~/lib/constants';
 export const metadata: Metadata = {
   title: APP_NAME,
   description: APP_DESCRIPTION,
+other: {
+    'base:app_id': '6950cddd4d3a403912ed8353',
+  },
 };
 
 export default async function RootLayout({
